@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"os"
+	"strings"
 )
 
 type Parser struct {
@@ -21,16 +22,26 @@ func (p *Parser) Parse() error {
 		if !scanner.Scan() {
 			return nil
 		}
-		line := scanner.Text()
-		switch token(line) {
-		case exit:
-			p.stop = true
+		for _, word := range strings.Split(scanner.Text(), " ") {
+			switch token(word) {
+			case exit:
+				p.tokens = append(p.tokens, exit)
+			}
+		}
+		if p.repl {
+			p.Exec()
 		}
 	}
 	return nil
 }
 
 func (p *Parser) Exec() error {
+	for _, token := range p.tokens {
+		switch token {
+		case exit:
+			p.stop = true
+		}
+	}
 	return nil
 }
 
