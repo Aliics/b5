@@ -59,15 +59,14 @@ func (p *Parser) Parse() error {
 }
 
 func (p *Parser) Exec() error {
-	for i := p.cursor; i < len(p.ops); i++ {
-		op := p.ops[i]
+	for ; p.cursor < len(p.ops); p.cursor++ {
+		op := p.ops[p.cursor]
 		switch op.t {
 		case exit:
 			p.stop = true
 		case output:
 			fmt.Println(op.args[0])
 		}
-		p.cursor++
 	}
 	return nil
 }
