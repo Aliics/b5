@@ -41,6 +41,12 @@ func (p *Parser) Parse() error {
 				}
 				switch ct {
 				case output:
+					if v := p.state[word]; v != nil {
+						p.ops = append(p.ops, op{ct, []string{fmt.Sprintf("%v", v)}})
+						ct = ""
+						arg = ""
+						break
+					}
 					s := joinWords(arg, word)
 					if validString(s) {
 						p.ops = append(p.ops, op{ct, []string{s}})
@@ -49,7 +55,7 @@ func (p *Parser) Parse() error {
 					} else if buildingString(s) {
 						arg = s
 					} else {
-						return fmt.Errorf("invalid string")
+						return fmt.Errorf("expected expression got %v", word)
 					}
 				case variable:
 					if !strings.Contains(word, "=") {
@@ -80,7 +86,9 @@ func (p *Parser) Exec() error {
 		case variable:
 			name := op.args[0]
 			p.state[name] = op.args[1]
-			fmt.Printf("$%v = %v\n", name, p.state[name])
+			if p.repl {
+				fmt.Printf("$%v = %v\n", name, p.state[name])
+			}
 		}
 	}
 	return nil
