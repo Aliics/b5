@@ -12,10 +12,11 @@ type Parser struct {
 	stop   bool
 	cursor int
 	ops    []op
+	state  map[string]interface{}
 }
 
 func NewParser(repl bool) *Parser {
-	return &Parser{repl, false, 0, make([]op, 0)}
+	return &Parser{repl, false, 0, make([]op, 0), make(map[string]interface{})}
 }
 
 func (p *Parser) Parse() error {
@@ -32,6 +33,8 @@ func (p *Parser) Parse() error {
 				p.ops = append(p.ops, op{t: exit})
 			case output:
 				ct = output
+			case variable:
+				ct = variable
 			default:
 				if ct == "" {
 					return fmt.Errorf("expected token got %s", word)
@@ -48,6 +51,14 @@ func (p *Parser) Parse() error {
 					} else {
 						return fmt.Errorf("invalid string")
 					}
+				case variable:
+					if !strings.Contains(word, "=") {
+						return fmt.Errorf("expected assignment got %v", word)
+					}
+					parts := strings.Split(word, "=")
+					p.ops = append(p.ops, op{ct, []string{parts[0], parts[1]}})
+					ct = ""
+					arg = ""
 				}
 			}
 		}
@@ -66,6 +77,10 @@ func (p *Parser) Exec() error {
 			p.stop = true
 		case output:
 			fmt.Println(op.args[0])
+		case variable:
+			name := op.args[0]
+			p.state[name] = op.args[1]
+			fmt.Printf("$%v = %v\n", name, p.state[name])
 		}
 	}
 	return nil
@@ -74,8 +89,9 @@ func (p *Parser) Exec() error {
 type token string
 
 const (
-	exit   token = "STOP"
-	output token = "PRINT"
+	exit     token = "STOP"
+	output   token = "PRINT"
+	variable token = "LET"
 )
 
 type op struct {
