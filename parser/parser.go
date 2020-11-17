@@ -26,7 +26,18 @@ func (p *Parser) Parse() error {
 			return nil
 		}
 		var ct token
-		var arg string
+		var e *expr
+		buildExpr := func(word string) {
+			e.add(word)
+			if !e.isValid() {
+				return
+			}
+			if e.isComplete() {
+				p.ops = append(p.ops, op{ct, *e})
+				ct = ""
+				e = nil
+			}
+		}
 		for _, word := range strings.Split(scanner.Text(), " ") {
 			switch token(word) {
 			case exit:
@@ -41,30 +52,17 @@ func (p *Parser) Parse() error {
 				}
 				switch ct {
 				case output:
-					if v := p.state[word]; v != nil {
-						p.ops = append(p.ops, op{ct, []string{fmt.Sprintf("%v", v)}})
-						ct = ""
-						arg = ""
-						break
+					if e == nil {
+						e = newExpr(word)
+						continue
 					}
-					s := joinWords(arg, word)
-					if validString(s) {
-						p.ops = append(p.ops, op{ct, []string{s}})
-						ct = ""
-						arg = ""
-					} else if buildingString(s) {
-						arg = s
-					} else {
-						return fmt.Errorf("expected expression got %v", word)
-					}
+					buildExpr(word)
 				case variable:
 					if !strings.Contains(word, "=") {
-						return fmt.Errorf("expected assignment got %v", word)
+						e = newExpr(word)
+					} else if e != nil {
+						buildExpr(word)
 					}
-					parts := strings.Split(word, "=")
-					p.ops = append(p.ops, op{ct, []string{parts[0], parts[1]}})
-					ct = ""
-					arg = ""
 				}
 			}
 		}
@@ -82,10 +80,10 @@ func (p *Parser) Exec() error {
 		case exit:
 			p.stop = true
 		case output:
-			fmt.Println(op.args[0])
+			fmt.Println(op.e.value())
 		case variable:
-			name := op.args[0]
-			p.state[name] = op.args[1]
+			name := op.e.words[0]
+			p.state[name] = op.e.words[1]
 			if p.repl {
 				fmt.Printf("$%v = %v\n", name, p.state[name])
 			}
@@ -104,5 +102,5 @@ const (
 
 type op struct {
 	t    token
-	args []string
+	e    expr
 }
