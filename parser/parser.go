@@ -22,6 +22,7 @@ func NewParser(repl bool) *Parser {
 func (p *Parser) Parse() error {
 	scanner := bufio.NewScanner(os.Stdin)
 	for !p.stop {
+		fmt.Printf("> ")
 		if !scanner.Scan() {
 			return nil
 		}
