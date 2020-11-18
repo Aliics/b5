@@ -30,10 +30,7 @@ func (p *Parser) Parse() error {
 		var e *expr
 		buildExpr := func(word string) {
 			e.add(word)
-			if !e.isValid() {
-				return
-			}
-			if e.isComplete() {
+			if e.isValid() && e.isComplete() {
 				p.ops = append(p.ops, op{ct, *e})
 				ct = ""
 				e = nil
@@ -54,14 +51,13 @@ func (p *Parser) Parse() error {
 				switch ct {
 				case output:
 					if e == nil {
-						e = newExpr(word)
-						continue
+						e = newExpr()
 					}
 					buildExpr(word)
 				case variable:
-					if !strings.Contains(word, "=") {
+					if e == nil {
 						e = newExpr(word)
-					} else if e != nil {
+					} else {
 						buildExpr(word)
 					}
 				}
@@ -87,7 +83,7 @@ func (p *Parser) Exec() error {
 			fmt.Println(op.e.value())
 		case variable:
 			name := op.e.words[0]
-			p.state[name] = op.e.words[1]
+			p.state[name] = op.e.value()
 			if p.repl {
 				fmt.Printf("$%v = %v\n", name, p.state[name])
 			}

@@ -17,13 +17,17 @@ func (e *expr) add(word string) {
 }
 
 func (e *expr) isValid() bool {
-	return strings.HasPrefix(e.words[0], `"`)
+	return strings.HasPrefix(e.words[0], `"`) || (len(e.words) > 1 && e.words[1] == "=")
 }
 
 func (e *expr) isComplete() bool {
-	return strings.HasPrefix(e.words[0], `"`) && strings.HasSuffix(e.words[len(e.words) - 1], `"`)
+	return (strings.HasPrefix(e.words[0], `"`) && strings.HasSuffix(e.words[len(e.words) - 1], `"`)) ||
+		(len(e.words) > 2 && e.words[1] == "=")
 }
 
 func (e *expr) value() string {
+	if len(e.words) > 2 && e.words[1] == "=" {
+		return strings.Join(e.words[2:], " ")
+	}
 	return strings.Join(e.words, " ")
 }
