@@ -5,11 +5,16 @@ import (
 )
 
 type expr struct {
-	words []string
+	words  []string
+	assign bool
 }
 
 func newExpr(words ...string) *expr {
-	return &expr{words}
+	return &expr{words, false}
+}
+
+func newAssignExpr(words ...string) *expr {
+	return &expr{words, true}
 }
 
 func (e *expr) add(word string) {
@@ -17,12 +22,11 @@ func (e *expr) add(word string) {
 }
 
 func (e *expr) isComplete() bool {
-	return (strings.HasPrefix(e.words[0], `"`) && strings.HasSuffix(e.words[len(e.words)-1], `"`)) ||
-		(len(e.words) > 2 && e.words[1] == "=")
+	return validString(e.words) || (e.assign && len(e.words) > 2 && e.words[1] == "=")
 }
 
 func (e *expr) value() string {
-	if len(e.words) > 2 && e.words[1] == "=" {
+	if e.assign {
 		return strings.Join(e.words[2:], " ")
 	}
 	return strings.Join(e.words, " ")

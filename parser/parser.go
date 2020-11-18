@@ -42,22 +42,16 @@ func (p *Parser) Parse() error {
 				p.ops = append(p.ops, op{t: exit})
 			case output:
 				ct = output
+				e = newExpr()
 			case variable:
 				ct = variable
+				e = newAssignExpr()
 			default:
 				if ct == "" {
 					return fmt.Errorf("[%d] expected token got %s", line, word)
 				}
 				switch ct {
-				case output:
-					if e == nil {
-						e = newExpr()
-					}
-					buildExpr(word)
-				case variable:
-					if e == nil {
-						e = newExpr(word)
-					}
+				case output, variable:
 					buildExpr(word)
 				}
 			}
@@ -66,7 +60,9 @@ func (p *Parser) Parse() error {
 			return fmt.Errorf("[%d] incomplete expression near %s", line, ct)
 		}
 		if p.repl {
-			p.Exec()
+			if e := p.Exec(); e != nil {
+				return e
+			}
 		}
 	}
 	return nil
@@ -82,9 +78,12 @@ func (p *Parser) Exec() error {
 			fmt.Println(op.e.value())
 		case variable:
 			name := op.e.words[0]
+			if p.state[name] != nil {
+				return fmt.Errorf("%s is already assigned", name)
+			}
 			p.state[name] = op.e.value()
 			if p.repl {
-				fmt.Printf("$%v = %v\n", name, p.state[name])
+				fmt.Printf("$%s = %v\n", name, p.state[name])
 			}
 		}
 	}
