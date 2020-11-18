@@ -30,7 +30,7 @@ func (p *Parser) Parse() error {
 		var e *expr
 		buildExpr := func(word string) {
 			e.add(word)
-			if e.isValid() && e.isComplete() {
+			if e.isComplete() {
 				p.ops = append(p.ops, op{ct, *e})
 				ct = ""
 				e = nil
@@ -57,9 +57,8 @@ func (p *Parser) Parse() error {
 				case variable:
 					if e == nil {
 						e = newExpr(word)
-					} else {
-						buildExpr(word)
 					}
+					buildExpr(word)
 				}
 			}
 		}
@@ -101,6 +100,6 @@ const (
 )
 
 type op struct {
-	t    token
-	e    expr
+	t token
+	e expr
 }
