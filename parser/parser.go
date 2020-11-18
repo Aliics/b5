@@ -21,7 +21,7 @@ func NewParser(repl bool) *Parser {
 
 func (p *Parser) Parse() error {
 	scanner := bufio.NewScanner(os.Stdin)
-	for !p.stop {
+	for line := 1; !p.stop; line++ {
 		fmt.Printf("> ")
 		if !scanner.Scan() {
 			return nil
@@ -49,7 +49,7 @@ func (p *Parser) Parse() error {
 				ct = variable
 			default:
 				if ct == "" {
-					return fmt.Errorf("expected token got %s", word)
+					return fmt.Errorf("[%d] expected token got %s", line, word)
 				}
 				switch ct {
 				case output:
@@ -66,6 +66,9 @@ func (p *Parser) Parse() error {
 					}
 				}
 			}
+		}
+		if ct != "" || e != nil {
+			return fmt.Errorf("[%d] incomplete expression near %s", line, ct)
 		}
 		if p.repl {
 			p.Exec()
