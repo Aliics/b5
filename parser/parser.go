@@ -16,7 +16,7 @@ type Parser struct {
 }
 
 func NewParser(repl bool) *Parser {
-	return &Parser{repl, false, 0, make([]op, 0), make(map[string]interface{})}
+	return &Parser{repl, false, 0, make([]op, 0), make(state)}
 }
 
 func (p *Parser) Parse() error {
