@@ -12,7 +12,7 @@ type Parser struct {
 	stop   bool
 	cursor int
 	ops    []op
-	state  map[string]interface{}
+	state  state
 }
 
 func NewParser(repl bool) *Parser {
@@ -39,13 +39,13 @@ func (p *Parser) Parse() error {
 		for _, word := range strings.Split(scanner.Text(), " ") {
 			switch token(word) {
 			case exit:
-				p.ops = append(p.ops, op{t: exit})
+				p.ops = append(p.ops, op{token: exit})
 			case output:
 				ct = output
-				e = newExpr()
+				e = newExpr(p.state)
 			case variable:
 				ct = variable
-				e = newAssignExpr()
+				e = newAssignExpr(p.state)
 			default:
 				if ct == "" {
 					return fmt.Errorf("[%d] expected token got %s", line, word)
@@ -71,17 +71,17 @@ func (p *Parser) Parse() error {
 func (p *Parser) Exec() error {
 	for ; p.cursor < len(p.ops); p.cursor++ {
 		op := p.ops[p.cursor]
-		switch op.t {
+		switch op.token {
 		case exit:
 			p.stop = true
 		case output:
-			fmt.Println(op.e.value())
+			fmt.Println(op.expr.value())
 		case variable:
-			name := op.e.words[0]
-			if p.state[name] != nil {
+			name := op.expr.words[0]
+			if p.state.has(name) {
 				return fmt.Errorf("%s is already assigned", name)
 			}
-			p.state[name] = op.e.value()
+			p.state[name] = op.expr.value()
 			if p.repl {
 				fmt.Printf("$%s = %v\n", name, p.state[name])
 			}
@@ -99,6 +99,6 @@ const (
 )
 
 type op struct {
-	t token
-	e expr
+	token token
+	expr  expr
 }
