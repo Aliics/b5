@@ -1,3 +1,3 @@
 module github.com/aliics/b5
 
-go 1.15
+go 1.17
