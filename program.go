@@ -1,5 +1,7 @@
 package b5
 
+import "fmt"
+
 type program interface {
 	Exec(string) error
 }
@@ -7,7 +9,8 @@ type program interface {
 type ShellProgram struct{}
 
 func (s ShellProgram) Exec(str string) error {
-	panic("implement me")
+	fmt.Println(parseTokens(str))
+	return nil
 }
 
 type StdProgram struct{}

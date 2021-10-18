@@ -11,13 +11,13 @@ func main() {
 	if len(flag.Args()) == 0 {
 		p := b5.ShellProgram{}
 
-		var line string
-		_, err := fmt.Scanln(&line)
-		if err != nil {
-			return
-		}
-
 		for {
+			var line string
+			_, err := fmt.Scanln(&line)
+			if err != nil {
+				panic(err)
+			}
+
 			err = p.Exec(line)
 			if err != nil {
 				panic(err)
