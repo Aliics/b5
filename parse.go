@@ -25,6 +25,7 @@ const (
 	restoreK
 	printF
 	stringL
+	numberL
 )
 
 func parseTokens(str string) (pts []pToken, err error) {
@@ -82,20 +83,33 @@ func parseTokens(str string) (pts []pToken, err error) {
 			pts = append(pts, pToken{stringL, str[i+1 : end]})
 			i = end
 		default:
-			var end int
-			for j := i; j < len(str); j++ {
-				if !unicode.IsLetter(rune(str[j])) {
-					end = j
-					break
+			if unicode.IsDigit(r) { // Numeric literals
+				var end int
+				for j := i; j < len(str); j++ {
+					if !unicode.IsDigit(rune(str[j])) {
+						end = j
+						break
+					}
 				}
-			}
 
-			if end < i {
-				return nil, errors.New("identifier starts with non-alphabetic rune")
-			}
+				pts = append(pts, pToken{numberL, str[i:end]})
+				i = end-1
+			} else { // Identifiers
+				var end int
+				for j := i; j < len(str); j++ {
+					if !unicode.IsLetter(rune(str[j])) {
+						end = j
+						break
+					}
+				}
 
-			pts = append(pts, pToken{ident, str[i:end]})
-			i = end-1
+				if end < i {
+					return nil, errors.New("identifier starts with non-alphabetic rune")
+				}
+
+				pts = append(pts, pToken{ident, str[i:end]})
+				i = end-1
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 )
 
 var valueDefinitions []map[string]string
+var currentStack int // everything is in global scope for now
 
 type instruction interface {
 	exec()
@@ -24,10 +25,10 @@ type letInstruction struct {
 }
 
 func (p letInstruction) exec() {
-	if len(valueDefinitions) < 1 {
+	if len(valueDefinitions) <= currentStack {
 		valueDefinitions = append(valueDefinitions, make(map[string]string))
 	}
-	valueDefinitions[len(valueDefinitions)-1][p.key] = p.value
+	valueDefinitions[currentStack][p.key] = p.value
 }
 
 func createInstructions(pts []pToken) (is []instruction, err error) {
@@ -42,7 +43,7 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 				return nil, errors.New(`expected identifier after "let"`)
 			}
 			if len(pts) < i+3 || pts[i+3].tt != equals {
-				return nil, errors.New(`expected equals after identifier "`+pts[i+2].data+`"`)
+				return nil, errors.New(`expected equals after identifier "` + pts[i+2].data + `"`)
 			}
 
 			is = append(is, letInstruction{pts[i+2].data, pts[i+4].data})
@@ -51,7 +52,7 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 			if len(pts) < i+1 || pts[i+1].tt != space {
 				return nil, errors.New(`expected space after "print"`)
 			}
-			if len(pts) < i+2 || pts[i+2].tt != ident && pts[i+2].tt != stringL {
+			if len(pts) < i+2 || pts[i+2].tt != ident && pts[i+2].tt != stringL && pts[i+2].tt != numberL {
 				return nil, errors.New(`"print" requires exactly one argument`)
 			}
 
@@ -59,7 +60,7 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 
 			var data string
 			if rh.tt == ident {
-				data = valueDefinitions[len(valueDefinitions)-1][rh.data]
+				data = valueDefinitions[currentStack][rh.data]
 			} else {
 				data = rh.data
 			}
