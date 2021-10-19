@@ -1,6 +1,6 @@
 package b5
 
-type program interface {
+type Program interface {
 	Exec(string) error
 }
 
@@ -12,12 +12,13 @@ func (s ShellProgram) Exec(str string) error {
 		return err
 	}
 
-	err = validSyntax(pts)
+	is, err := createInstructions(pts)
 	if err != nil {
 		return err
 	}
-
-	interpretLine(pts)
+	for _, i := range is {
+		i.exec()
+	}
 
 	return nil
 }

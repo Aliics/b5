@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"github.com/aliics/b5"
 	"os"
 )
@@ -13,6 +14,8 @@ func main() {
 
 		b := bufio.NewReader(os.Stdin)
 		for {
+			fmt.Print("> ")
+
 			line, err := b.ReadString('\n')
 			if err != nil {
 				panic(err)
@@ -22,6 +25,8 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+
+			fmt.Print("\n")
 		}
 	} else {
 		str, err := os.ReadFile(flag.Arg(0))

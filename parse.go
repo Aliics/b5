@@ -3,6 +3,7 @@ package b5
 import (
 	"errors"
 	"strings"
+	"unicode"
 )
 
 type pToken struct {
@@ -15,6 +16,7 @@ type tokenType uint8
 const (
 	newline tokenType = iota
 	space
+	remK
 	letK
 	dataK
 	readK
@@ -25,7 +27,7 @@ const (
 
 func parseTokens(str string) (pts []pToken, err error) {
 	for i := 0; i < len(str); i++ {
-		r := rune(str[i])
+		r := unicode.ToLower(rune(str[i]))
 		switch r {
 		case '\n':
 			pts = append(pts, pToken{tt: newline})
@@ -41,8 +43,15 @@ func parseTokens(str string) (pts []pToken, err error) {
 				pts = append(pts, pToken{tt: dataK})
 				i += 3
 			}
-		case 'r': // READ, RESTORE
-			if isWord(i, str, "read") {
+		case 'r': // REM, READ, RESTORE
+			if isWord(i, str, "rem") {
+				pts = append(pts, pToken{tt: remK})
+				for ; i < len(str); i++ {
+					if len(str) > i+1 && str[i+1] == '\n' {
+						break
+					}
+				}
+			} else if isWord(i, str, "read") {
 				pts = append(pts, pToken{tt: readK})
 				i += 3
 			} else if isWord(i, str, "restore") {
