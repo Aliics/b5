@@ -16,6 +16,8 @@ type tokenType uint8
 const (
 	newline tokenType = iota
 	space
+	equals
+	ident
 	remK
 	letK
 	dataK
@@ -33,6 +35,8 @@ func parseTokens(str string) (pts []pToken, err error) {
 			pts = append(pts, pToken{tt: newline})
 		case ' ':
 			pts = append(pts, pToken{tt: space})
+		case '=':
+			pts = append(pts, pToken{tt: equals})
 		case 'l': // LET
 			if isWord(i, str, "let") {
 				pts = append(pts, pToken{tt: letK})
@@ -77,6 +81,21 @@ func parseTokens(str string) (pts []pToken, err error) {
 
 			pts = append(pts, pToken{stringL, str[i+1 : end]})
 			i = end
+		default:
+			var end int
+			for j := i; j < len(str); j++ {
+				if !unicode.IsLetter(rune(str[j])) {
+					end = j
+					break
+				}
+			}
+
+			if end < i {
+				return nil, errors.New("identifier starts with non-alphabetic rune")
+			}
+
+			pts = append(pts, pToken{ident, str[i:end]})
+			i = end-1
 		}
 	}
 

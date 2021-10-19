@@ -25,8 +25,6 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-
-			fmt.Print("\n")
 		}
 	} else {
 		str, err := os.ReadFile(flag.Arg(0))
