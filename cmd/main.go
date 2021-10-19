@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bufio"
 	"flag"
-	"fmt"
 	"github.com/aliics/b5"
 	"os"
 )
@@ -11,9 +11,9 @@ func main() {
 	if len(flag.Args()) == 0 {
 		p := b5.ShellProgram{}
 
+		b := bufio.NewReader(os.Stdin)
 		for {
-			var line string
-			_, err := fmt.Scanln(&line)
+			line, err := b.ReadString('\n')
 			if err != nil {
 				panic(err)
 			}

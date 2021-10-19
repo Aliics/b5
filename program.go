@@ -1,7 +1,5 @@
 package b5
 
-import "fmt"
-
 type program interface {
 	Exec(string) error
 }
@@ -9,7 +7,18 @@ type program interface {
 type ShellProgram struct{}
 
 func (s ShellProgram) Exec(str string) error {
-	fmt.Println(parseTokens(str))
+	pts, err := parseTokens(str)
+	if err != nil {
+		return err
+	}
+
+	err = validSyntax(pts)
+	if err != nil {
+		return err
+	}
+
+	interpretLine(pts)
+
 	return nil
 }
 
