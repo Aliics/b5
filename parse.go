@@ -19,6 +19,9 @@ const (
 	space
 	equals
 	plus
+	minus
+	mul
+	div
 	ident
 	remK
 	letK
@@ -42,6 +45,12 @@ func parseTokens(str string) (pts []pToken, err error) {
 			pts = append(pts, pToken{tt: equals})
 		case '+':
 			pts = append(pts, pToken{tt: plus})
+		case '-':
+			pts = append(pts, pToken{tt: minus})
+		case '*':
+			pts = append(pts, pToken{tt: mul})
+		case '/':
+			pts = append(pts, pToken{tt: div})
 		case 'l': // LET
 			if isWord(i, str, "let") {
 				pts = append(pts, pToken{tt: letK})
