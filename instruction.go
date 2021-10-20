@@ -3,6 +3,7 @@ package b5
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -89,10 +90,11 @@ func resolveExpression(pts []pToken, from int) (v interface{}, err error) {
 		if err != nil {
 			return nil, err
 		}
+		expKind := reflect.TypeOf(exp).Kind()
 
 		switch v.(type) {
 		case int:
-			if pts[from+2].tt == stringL {
+			if expKind == reflect.String {
 				return nil, errors.New("cannot add string to number")
 			}
 
@@ -110,7 +112,7 @@ func resolveExpression(pts []pToken, from int) (v interface{}, err error) {
 			switch pts[from+1].tt {
 			case plus:
 				var str string
-				if pts[from+2].tt == stringL {
+				if expKind == reflect.String {
 					str = exp.(string)
 				} else {
 					str = strconv.Itoa(exp.(int))
@@ -120,7 +122,7 @@ func resolveExpression(pts []pToken, from int) (v interface{}, err error) {
 			case minus:
 				return nil, errors.New("cannot subtract from string")
 			case mul:
-				if pts[from+2].tt != numberL {
+				if expKind != reflect.Int {
 					return nil, errors.New("expected number on right hand of string multiplication")
 				}
 
