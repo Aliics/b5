@@ -2,13 +2,14 @@ package b5
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"unicode"
 )
 
 type pToken struct {
 	tt   tokenType
-	data string
+	data interface{}
 }
 
 type tokenType uint8
@@ -17,6 +18,7 @@ const (
 	newline tokenType = iota
 	space
 	equals
+	plus
 	ident
 	remK
 	letK
@@ -38,6 +40,8 @@ func parseTokens(str string) (pts []pToken, err error) {
 			pts = append(pts, pToken{tt: space})
 		case '=':
 			pts = append(pts, pToken{tt: equals})
+		case '+':
+			pts = append(pts, pToken{tt: plus})
 		case 'l': // LET
 			if isWord(i, str, "let") {
 				pts = append(pts, pToken{tt: letK})
@@ -73,6 +77,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 			for j := i + 1; j < len(str); j++ {
 				if str[j] == '"' {
 					end = j
+					break
 				}
 			}
 
@@ -92,7 +97,12 @@ func parseTokens(str string) (pts []pToken, err error) {
 					}
 				}
 
-				pts = append(pts, pToken{numberL, str[i:end]})
+				atoi, err := strconv.Atoi(str[i:end])
+				if err != nil {
+					return nil, err
+				}
+
+				pts = append(pts, pToken{numberL, atoi})
 				i = end-1
 			} else { // Identifiers
 				var end int
