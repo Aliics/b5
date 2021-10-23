@@ -104,19 +104,21 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 			}
 
 			i, err = traverseSpaces(i, pts, false)
-			if err != nil {
-				return nil, err
-			}
-
-			if pts[i].tt != newline {
+			if err != nil && pts[i].tt != newline {
 				return nil, errors.New(`expected space or new line after "then"`)
 			}
 
 			scopeStartI := i
+			var found bool
 			for ; i < len(pts); i++ {
 				if pts[i].tt == endK {
+					found = true
 					break
 				}
+			}
+
+			if !found {
+				return nil, errors.New(`could not find "end" for corresponding "if"`)
 			}
 
 			ifInstructions, err := createInstructions(pts[scopeStartI:i])
