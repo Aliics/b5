@@ -15,6 +15,6 @@ directory.
 
 | Example | Link | Desc|
 |---|---|---|
-| Hello, World! | [hello_world.basic](examples/hello_world.basic) | Simple "Hello, World!" program. |
-| Variables | [variables.basic](examples/variables.basic) | Simple variable usage.
-| If statements | [if_statements.basic](examples/if_statements.basic) | If statement control flow examples.
+| Hello, World! | [hello_world.b5](examples/hello_world.b5) | Simple "Hello, World!" program. |
+| Variables | [variables.b5](examples/variables.b5) | Simple variable usage.
+| If statements | [if_statements.b5](examples/if_statements.b5) | If statement control flow examples.
