@@ -1,4 +1,7 @@
 IF 1 THEN
+    IF 0 THEN
+        PRINT "won't get here"
+    END
     LET x = "alex"
     PRINT x
 END

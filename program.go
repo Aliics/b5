@@ -27,12 +27,9 @@ func (s ShellProgram) Exec() error {
 			return err
 		}
 
-		is, err := createInstructions(pts)
+		err = interpret(pts)
 		if err != nil {
 			return err
-		}
-		for _, i := range is {
-			i.exec()
 		}
 	}
 }
@@ -52,12 +49,9 @@ func (s StdProgram) Exec() error {
 		return err
 	}
 
-	is, err := createInstructions(pts)
+	err = interpret(pts)
 	if err != nil {
 		return err
-	}
-	for _, i := range is {
-		i.exec()
 	}
 
 	return nil

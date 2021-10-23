@@ -8,104 +8,75 @@ import (
 	"strings"
 )
 
-var valueDefinitions []map[string]interface{}
-var currentStack int
+var (
+	currentStack     int
+	valueDefinitions []map[string]interface{}
+)
 
-type instruction interface {
-	exec()
-}
-
-type printInstruction struct {
-	data interface{}
-}
-
-func (p printInstruction) exec() {
-	fmt.Println(p.data)
-}
-
-type letInstruction struct {
-	key   string
-	value interface{}
-}
-
-func (p letInstruction) exec() {
-	if len(valueDefinitions) <= currentStack {
-		valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
-	}
-	valueDefinitions[currentStack][p.key] = p.value
-}
-
-type ifInstruction struct {
-	conditionValue  int
-	executableBlock func()
-}
-
-func (i ifInstruction) exec() {
-	if i.conditionValue == 1 {
-		i.executableBlock()
-	}
-}
-
-func createInstructions(pts []pToken) (is []instruction, err error) {
+func interpret(pts []pToken) (err error) {
 	for i := 0; i < len(pts); i++ {
 		pt := pts[i]
+
 		switch pt.tt {
 		case letK:
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			identI := i
 			if pts[i].tt != ident {
-				return nil, errors.New(`expected identifier after "let"`)
+				return errors.New(`expected identifier after "let"`)
 			}
 
 			i, err = traverseSpaces(i, pts, false)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			if pts[i].tt != equals {
-				return nil, errors.New(`expected equals after identifier "` + pts[identI].data.(string) + `"`)
+				return errors.New(`expected equals after identifier "` + pts[identI].data.(string) + `"`)
 			}
 
 			i, err = traverseSpaces(i, pts, false)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			var exp interface{}
 			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			is = append(is, letInstruction{pts[identI].data.(string), exp})
+			if len(valueDefinitions) <= currentStack {
+				valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
+			}
+			valueDefinitions[currentStack][pts[identI].data.(string)] = exp
 		case ifK:
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			var exp interface{}
 			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			if pts[i].tt != thenK {
-				return nil, errors.New(`expected "then" after if condition`)
+				return errors.New(`expected "then" after if condition`)
 			}
 
 			i, err = traverseSpaces(i, pts, false)
 			if err != nil && pts[i].tt != newline {
-				return nil, errors.New(`expected space or new line after "then"`)
+				return errors.New(`expected space or new line after "then"`)
 			}
 
 			scopeStartI := i
@@ -118,46 +89,53 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 			}
 
 			if !found {
-				return nil, errors.New(`could not find "end" for corresponding "if"`)
+				return errors.New(`could not find "end" for corresponding "if"`)
 			}
 
-			ifInstructions, err := createInstructions(pts[scopeStartI:i])
-			if err != nil {
-				return nil, err
-			}
-
-			is = append(is, ifInstruction{exp.(int), func() {
-				currentStack++
-				valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
-
-				for _, in := range ifInstructions {
-					in.exec()
+			if exp.(int) == 1 {
+				err = executeInScope(func() error {
+					return interpret(pts[scopeStartI:i])
+				})
+				if err != nil {
+					return err
 				}
-
-				valueDefinitions = valueDefinitions[0 : len(valueDefinitions)-1]
-				currentStack--
-			}})
+			}
 		case printF:
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			if pts[i].tt != ident && (pts[i].tt < stringL || pts[i].tt > numberL) {
-				return nil, errors.New(`"print" requires exactly one argument`)
+				return errors.New(`"print" requires exactly one argument`)
 			}
 
 			var exp interface{}
 			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			is = append(is, printInstruction{exp})
+			fmt.Println(exp)
 		}
 	}
 
-	return
+	return nil
+}
+
+func executeInScope(f func() error) error {
+	currentStack++
+	valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
+
+	err := f()
+	if err != nil {
+		return err
+	}
+
+	valueDefinitions = valueDefinitions[0 : len(valueDefinitions)-1]
+	currentStack--
+
+	return nil
 }
 
 func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
