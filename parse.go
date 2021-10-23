@@ -15,8 +15,9 @@ type pToken struct {
 type tokenType uint8
 
 const (
+	none tokenType = iota // Skip token
 	// Special characters
-	newline tokenType = iota
+	newline
 	space
 	equals
 	plus

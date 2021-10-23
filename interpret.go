@@ -13,40 +13,47 @@ var (
 	valueDefinitions []map[string]interface{}
 )
 
-func interpret(pts []pToken) (err error) {
-	for i := 0; i < len(pts); i++ {
+func interpret(pts []pToken) error {
+	_, err := interpretUntil(pts, none)
+	return err
+}
+
+func interpretUntil(pts []pToken, until tokenType) (i int, err error) {
+	for ; i < len(pts); i++ {
 		pt := pts[i]
 
 		switch pt.tt {
+		case until:
+			return i, nil
 		case letK:
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			identI := i
 			if pts[i].tt != ident {
-				return errors.New(`expected identifier after "let"`)
+				return -1, errors.New(`expected identifier after "let"`)
 			}
 
 			i, err = traverseSpaces(i, pts, false)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			if pts[i].tt != equals {
-				return errors.New(`expected equals after identifier "` + pts[identI].data.(string) + `"`)
+				return -1, errors.New(`expected equals after identifier "` + pts[identI].data.(string) + `"`)
 			}
 
 			i, err = traverseSpaces(i, pts, false)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			var exp interface{}
 			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			if len(valueDefinitions) <= currentStack {
@@ -56,71 +63,74 @@ func interpret(pts []pToken) (err error) {
 		case ifK:
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			var exp interface{}
 			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			if pts[i].tt != thenK {
-				return errors.New(`expected "then" after if condition`)
+				return -1, errors.New(`expected "then" after if condition`)
 			}
 
 			i, err = traverseSpaces(i, pts, false)
 			if err != nil && pts[i].tt != newline {
-				return errors.New(`expected space or new line after "then"`)
-			}
-
-			scopeStartI := i
-			var found bool
-			for ; i < len(pts); i++ {
-				if pts[i].tt == endK {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				return errors.New(`could not find "end" for corresponding "if"`)
+				return -1, errors.New(`expected space or new line after "then"`)
 			}
 
 			if exp.(int) == 1 {
 				err = executeInScope(func() error {
-					return interpret(pts[scopeStartI:i])
+					scopeBegin := i
+					i, err = interpretUntil(pts[scopeBegin:], endK)
+					i += scopeBegin
+					return err
 				})
 				if err != nil {
-					return err
+					return -1, err
+				}
+			} else {
+				required := 1
+				for ; i < len(pts); i++ {
+					if pts[i].tt == ifK {
+						required++
+					}
+					if pts[i].tt == endK {
+						required--
+						if required == 0 {
+							break
+						}
+					}
 				}
 			}
 		case printF:
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			if pts[i].tt != ident && (pts[i].tt < stringL || pts[i].tt > numberL) {
-				return errors.New(`"print" requires exactly one argument`)
+				return -1, errors.New(`"print" requires exactly one argument`)
 			}
 
 			var exp interface{}
 			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
-				return err
+				return -1, err
 			}
 
 			fmt.Println(exp)
 		}
 	}
 
-	return nil
+	return i, nil
 }
 
 func executeInScope(f func() error) error {

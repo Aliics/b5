@@ -49,10 +49,5 @@ func (s StdProgram) Exec() error {
 		return err
 	}
 
-	err = interpret(pts)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return interpret(pts)
 }
