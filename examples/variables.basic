@@ -1,2 +1,6 @@
 LET name = "Alexander"
-PRINT "My creator is " + name
+LET statement = "My creator's name is "
+PRINT statement + name
+
+LET year = 2000
+PRINT "The year is: " + year + 21
