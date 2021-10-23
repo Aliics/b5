@@ -15,6 +15,7 @@ type pToken struct {
 type tokenType uint8
 
 const (
+	// Special characters
 	newline tokenType = iota
 	space
 	equals
@@ -23,15 +24,62 @@ const (
 	mul
 	div
 	ident
+	// Keywords
 	remK
 	letK
 	dataK
 	readK
 	restoreK
+	ifK
+	thenK
+	// Built-in functions
 	printF
+	// Literals
 	stringL
 	numberL
 )
+
+func (t tokenType) String() string {
+	switch t {
+	case newline:
+		return "newline"
+	case space:
+		return "space"
+	case equals:
+		return "equals"
+	case plus:
+		return "plus"
+	case minus:
+		return "minus"
+	case mul:
+		return "mul"
+	case div:
+		return "div"
+	case ident:
+		return "ident"
+	case remK:
+		return "rem"
+	case letK:
+		return "let"
+	case dataK:
+		return "data"
+	case readK:
+		return "read"
+	case restoreK:
+		return "restore"
+	case ifK:
+		return "if"
+	case thenK:
+		return "then"
+	case printF:
+		return "print"
+	case stringL:
+		return "string"
+	case numberL:
+		return "number"
+	}
+	return "none"
+}
 
 func parseTokens(str string) (pts []pToken, err error) {
 	for i := 0; i < len(str); i++ {
@@ -81,6 +129,16 @@ func parseTokens(str string) (pts []pToken, err error) {
 				pts = append(pts, pToken{tt: printF})
 				i += 4
 			}
+		case 'i': // IF
+			if isWord(i, str, "if") {
+				pts = append(pts, pToken{tt: ifK})
+				i += 1
+			}
+		case 't': // THEN
+			if isWord(i, str, "then") {
+				pts = append(pts, pToken{tt: thenK})
+				i += 3
+			}
 		case '"': // Strings
 			var end int
 			for j := i + 1; j < len(str); j++ {
@@ -112,7 +170,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 				}
 
 				pts = append(pts, pToken{numberL, atoi})
-				i = end-1
+				i = end - 1
 			} else { // Identifiers
 				var end int
 				for j := i; j < len(str); j++ {
@@ -127,7 +185,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 				}
 
 				pts = append(pts, pToken{ident, str[i:end]})
-				i = end-1
+				i = end - 1
 			}
 		}
 	}

@@ -35,70 +35,135 @@ func (p letInstruction) exec() {
 	valueDefinitions[currentStack][p.key] = p.value
 }
 
+type ifInstruction struct {
+	conditionValue  int
+	executableBlock func()
+}
+
+func (i ifInstruction) exec() {
+	if i.conditionValue == 1 {
+		i.executableBlock()
+	}
+}
+
 func createInstructions(pts []pToken) (is []instruction, err error) {
 	for i := 0; i < len(pts); i++ {
 		pt := pts[i]
 		switch pt.tt {
 		case letK:
-			if len(pts) < i+1 || pts[i+1].tt != space {
-				return nil, errors.New(`expected space after "let"`)
-			}
-			if len(pts) < i+2 || pts[i+2].tt != ident {
-				return nil, errors.New(`expected identifier after "let"`)
-			}
-			if len(pts) < i+3 || pts[i+3].tt != equals {
-				return nil, errors.New(`expected equals after identifier "` + pts[i+2].data.(string) + `"`)
-			}
-
-			exp, err := resolveExpression(pts, i+4)
+			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
 				return nil, err
 			}
 
-			is = append(is, letInstruction{pts[i+2].data.(string), exp})
-			i += 3
-		case printF:
-			if len(pts) < i+1 || pts[i+1].tt != space {
-				return nil, errors.New(`expected space after "print"`)
+			identI := i
+			if pts[i].tt != ident {
+				return nil, errors.New(`expected identifier after "let"`)
 			}
-			if len(pts) < i+2 || pts[i+2].tt != ident && pts[i+2].tt != stringL && pts[i+2].tt != numberL {
+
+			i, err = traverseSpaces(i, pts, false)
+			if err != nil {
+				return nil, err
+			}
+
+			if pts[i].tt != equals {
+				return nil, errors.New(`expected equals after identifier "` + pts[identI].data.(string) + `"`)
+			}
+
+			i, err = traverseSpaces(i, pts, false)
+			if err != nil {
+				return nil, err
+			}
+
+			var exp interface{}
+			i, exp, err = resolveExpression(i, pts)
+			if err != nil {
+				return nil, err
+			}
+
+			is = append(is, letInstruction{pts[identI].data.(string), exp})
+		case ifK:
+			i, err = traverseSpaces(i, pts, true)
+			if err != nil {
+				return nil, err
+			}
+
+			var exp interface{}
+			i, exp, err = resolveExpression(i+2, pts)
+			if err != nil {
+				return nil, err
+			}
+
+			i, err = traverseSpaces(i, pts, true)
+			if err != nil {
+				return nil, err
+			}
+
+			if pts[i].tt != thenK {
+				return nil, errors.New(`expected "then" after if condition`)
+			}
+
+			is = append(is, ifInstruction{exp.(int), func() {
+				fmt.Println("foo")
+			}})
+		case printF:
+			i, err = traverseSpaces(i, pts, true)
+			if err != nil {
+				return nil, err
+			}
+
+			if pts[i].tt != ident && (pts[i].tt < stringL || pts[i].tt > numberL) {
 				return nil, errors.New(`"print" requires exactly one argument`)
 			}
 
-			exp, err := resolveExpression(pts, i+2)
+			var exp interface{}
+			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
 				return nil, err
 			}
 
 			is = append(is, printInstruction{exp})
-			i += 1
 		}
 	}
 
 	return
 }
 
-func resolveExpression(pts []pToken, from int) (v interface{}, err error) {
+func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
+	var v interface{}
 	if pts[from].tt == ident {
 		v = valueDefinitions[currentStack][pts[from].data.(string)]
 	} else {
 		v = pts[from].data
 	}
 
-	if len(pts) > from+2 && pts[from+1].tt >= plus && pts[from+1].tt <= div {
-		exp, err := resolveExpression(pts, from+2)
+	from, err := traverseSpaces(from, pts, false)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	opI := from
+	if pts[from].tt >= plus && pts[from].tt <= div {
+		from, err = traverseSpaces(from, pts, false)
 		if err != nil {
-			return nil, err
+			return -1, nil, err
 		}
+
+		var exp interface{}
+		from, exp, err = resolveExpression(from, pts)
+		if err != nil {
+			return -1, nil, err
+		}
+
 		expKind := reflect.TypeOf(exp).Kind()
 
 		switch v.(type) {
 		case int:
 			if expKind == reflect.String {
-				return nil, errors.New("cannot add string to number")
+				return -1, nil, errors.New("cannot add string to number")
 			}
 
-			switch pts[from+1].tt {
+			switch pts[opI].tt {
 			case plus:
 				v = v.(int) + exp.(int)
 			case minus:
@@ -109,7 +174,7 @@ func resolveExpression(pts []pToken, from int) (v interface{}, err error) {
 				v = v.(int) / exp.(int)
 			}
 		case string:
-			switch pts[from+1].tt {
+			switch pts[opI].tt {
 			case plus:
 				var str string
 				if expKind == reflect.String {
@@ -120,18 +185,37 @@ func resolveExpression(pts []pToken, from int) (v interface{}, err error) {
 
 				v = v.(string) + str
 			case minus:
-				return nil, errors.New("cannot subtract from string")
+				return -1, nil, errors.New("cannot subtract from string")
 			case mul:
 				if expKind != reflect.Int {
-					return nil, errors.New("expected number on right hand of string multiplication")
+					return -1, nil, errors.New("expected number on right hand of string multiplication")
 				}
 
 				v = strings.Repeat(v.(string), exp.(int))
 			case div:
-				return nil, errors.New("cannot divide from string")
+				return -1, nil, errors.New("cannot divide from string")
 			}
 		}
 	}
 
-	return
+	return from, v, nil
+}
+
+func traverseSpaces(from int, pts []pToken, strict bool) (int, error) {
+	i := from + 1
+	if len(pts) <= i || len(pts) > i && pts[i].tt != space {
+		if strict {
+			return -1, errors.New(`expected space after "` + pts[from].tt.String() + `"`)
+		} else {
+			return i, nil
+		}
+	}
+
+	for ; i < len(pts); i++ {
+		if pts[i].tt != space {
+			break
+		}
+	}
+
+	return i, nil
 }
