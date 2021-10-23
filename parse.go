@@ -32,6 +32,7 @@ const (
 	restoreK
 	ifK
 	thenK
+	endK
 	// Built-in functions
 	printF
 	// Literals
@@ -138,6 +139,11 @@ func parseTokens(str string) (pts []pToken, err error) {
 			if isWord(i, str, "then") {
 				pts = append(pts, pToken{tt: thenK})
 				i += 3
+			}
+		case 'e': // END
+			if isWord(i, str, "end") {
+				pts = append(pts, pToken{tt: endK})
+				i += 2
 			}
 		case '"': // Strings
 			var end int

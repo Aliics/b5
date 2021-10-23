@@ -89,7 +89,7 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 			}
 
 			var exp interface{}
-			i, exp, err = resolveExpression(i+2, pts)
+			i, exp, err = resolveExpression(i, pts)
 			if err != nil {
 				return nil, err
 			}
@@ -103,8 +103,33 @@ func createInstructions(pts []pToken) (is []instruction, err error) {
 				return nil, errors.New(`expected "then" after if condition`)
 			}
 
+			i, err = traverseSpaces(i, pts, true)
+			if err != nil {
+				return nil, err
+			}
+
+			scopeStartI := i
+			for ; i < len(pts); i++ {
+				if pts[i].tt == endK || pts[i].tt == newline {
+					break
+				}
+			}
+
+			ifInstructions, err := createInstructions(pts[scopeStartI:i])
+			if err != nil {
+				return nil, err
+			}
+
 			is = append(is, ifInstruction{exp.(int), func() {
-				fmt.Println("foo")
+				currentStack++
+				valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
+
+				for _, in := range ifInstructions {
+					in.exec()
+				}
+
+				valueDefinitions = valueDefinitions[0 : len(valueDefinitions)-1]
+				currentStack--
 			}})
 		case printF:
 			i, err = traverseSpaces(i, pts, true)
@@ -137,6 +162,11 @@ func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 		v = pts[from].data
 	}
 
+	if len(pts) <= from+2 {
+		return from, v, nil
+	}
+
+	beforeSpaceI := from
 	from, err := traverseSpaces(from, pts, false)
 	if err != nil {
 		return -1, nil, err
@@ -196,6 +226,8 @@ func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 				return -1, nil, errors.New("cannot divide from string")
 			}
 		}
+	} else {
+		return beforeSpaceI, v, err
 	}
 
 	return from, v, nil
