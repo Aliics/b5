@@ -14,18 +14,21 @@ var (
 )
 
 func interpret(pts []pToken) error {
-	_, err := interpretUntil(pts, none)
+	_, err := interpretUntil(pts, []tokenType{})
 	return err
 }
 
-func interpretUntil(pts []pToken, until tokenType) (i int, err error) {
+func interpretUntil(pts []pToken, until []tokenType) (i int, err error) {
 	for ; i < len(pts); i++ {
-		pt := pts[i]
+		// Check if we go to the until token.
+		for _, t := range until {
+			if pts[i].tt == t {
+				return i, nil
+			}
+		}
 
-		switch pt.tt {
-		case until:
-			return i, nil
-		case letK:
+		switch pts[i].tt {
+		case letK: // LET x = 1
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
 				return -1, err
@@ -60,7 +63,7 @@ func interpretUntil(pts []pToken, until tokenType) (i int, err error) {
 				valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
 			}
 			valueDefinitions[currentStack][pts[identI].data.(string)] = exp
-		case ifK:
+		case ifK: // IF 1 THEN PRINT 1 ELSE PRINT 0 END
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
 				return -1, err
@@ -89,12 +92,16 @@ func interpretUntil(pts []pToken, until tokenType) (i int, err error) {
 			if exp.(int) == 1 {
 				err = executeInScope(func() error {
 					scopeBegin := i
-					i, err = interpretUntil(pts[scopeBegin:], endK)
+					i, err = interpretUntil(pts[scopeBegin:], []tokenType{endK, elseK})
 					i += scopeBegin
 					return err
 				})
 				if err != nil {
 					return -1, err
+				}
+
+				if pts[i].tt == elseK {
+					i = traverseToToken(i, pts, endK)
 				}
 			} else {
 				required := 1
@@ -102,7 +109,7 @@ func interpretUntil(pts []pToken, until tokenType) (i int, err error) {
 					if pts[i].tt == ifK {
 						required++
 					}
-					if pts[i].tt == endK {
+					if pts[i].tt == endK || pts[i].tt == elseK {
 						required--
 						if required == 0 {
 							break
@@ -110,7 +117,7 @@ func interpretUntil(pts []pToken, until tokenType) (i int, err error) {
 					}
 				}
 			}
-		case printF:
+		case printF: // PRINT 1
 			i, err = traverseSpaces(i, pts, true)
 			if err != nil {
 				return -1, err
@@ -151,7 +158,20 @@ func executeInScope(f func() error) error {
 func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 	var v interface{}
 	if pts[from].tt == ident {
-		v = valueDefinitions[currentStack][pts[from].data.(string)]
+		s := currentStack
+		for {
+			key := pts[from].data.(string)
+			if s >= len(valueDefinitions) || s < 0 {
+				return -1, nil, errors.New(`could not find identifier "` + key + `"`)
+			}
+
+			if value, ok := valueDefinitions[s][key]; ok {
+				v = value
+				break
+			}
+
+			s--
+		}
 	} else {
 		v = pts[from].data
 	}
@@ -225,6 +245,16 @@ func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 	}
 
 	return from, v, nil
+}
+
+func traverseToToken(i int, pts []pToken, match tokenType) int {
+	for ; i < len(pts); i++ {
+		if pts[i].tt == match {
+			break
+		}
+	}
+
+	return i
 }
 
 func traverseSpaces(from int, pts []pToken, strict bool) (int, error) {

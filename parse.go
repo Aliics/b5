@@ -15,9 +15,8 @@ type pToken struct {
 type tokenType uint8
 
 const (
-	none tokenType = iota // Skip token
 	// Special characters
-	newline
+	newline tokenType = iota
 	space
 	equals
 	plus
@@ -28,11 +27,9 @@ const (
 	// Keywords
 	remK
 	letK
-	dataK
-	readK
-	restoreK
 	ifK
 	thenK
+	elseK
 	endK
 	// Built-in functions
 	printF
@@ -63,16 +60,14 @@ func (t tokenType) String() string {
 		return "rem"
 	case letK:
 		return "let"
-	case dataK:
-		return "data"
-	case readK:
-		return "read"
-	case restoreK:
-		return "restore"
 	case ifK:
 		return "if"
 	case thenK:
 		return "then"
+	case elseK:
+		return "else"
+	case endK:
+		return "end"
 	case printF:
 		return "print"
 	case stringL:
@@ -106,12 +101,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 				pts = append(pts, pToken{tt: letK})
 				i += 2
 			}
-		case 'd': // DATA
-			if isWord(i, str, "data") {
-				pts = append(pts, pToken{tt: dataK})
-				i += 3
-			}
-		case 'r': // REM, READ, RESTORE
+		case 'r': // REM
 			if isWord(i, str, "rem") {
 				pts = append(pts, pToken{tt: remK})
 				for ; i < len(str); i++ {
@@ -119,12 +109,6 @@ func parseTokens(str string) (pts []pToken, err error) {
 						break
 					}
 				}
-			} else if isWord(i, str, "read") {
-				pts = append(pts, pToken{tt: readK})
-				i += 3
-			} else if isWord(i, str, "restore") {
-				pts = append(pts, pToken{tt: restoreK})
-				i += 6
 			}
 		case 'p': // PRINT
 			if isWord(i, str, "print") {
@@ -145,6 +129,9 @@ func parseTokens(str string) (pts []pToken, err error) {
 			if isWord(i, str, "end") {
 				pts = append(pts, pToken{tt: endK})
 				i += 2
+			} else if isWord(i, str, "else") {
+				pts = append(pts, pToken{tt: elseK})
+				i += 3
 			}
 		case '"': // Strings
 			var end int

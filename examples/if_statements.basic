@@ -1,10 +1,11 @@
+LET name = "Alexander"
+
 IF 1 THEN
+    LET statement = " is cool."
     IF 0 THEN
-        PRINT "won't get here"
+        PRINT "OBJECTION!"
     END
-    IF 1 THEN
-        PRINT "will get here"
-    END
-    LET x = "alex"
-    PRINT x
+    PRINT name + statement
+ELSE
+    PRINT "who are you?"
 END
