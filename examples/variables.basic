@@ -1,0 +1,2 @@
+LET name = "Alexander"
+PRINT "My creator is " + name

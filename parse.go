@@ -88,7 +88,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 		switch r {
 		case '\n':
 			pts = append(pts, pToken{tt: newline})
-		case ' ':
+		case ' ', '\t':
 			pts = append(pts, pToken{tt: space})
 		case '=':
 			pts = append(pts, pToken{tt: equals})

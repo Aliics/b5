@@ -1,0 +1,4 @@
+IF 1 THEN
+    LET x = "alex"
+    PRINT x
+END
