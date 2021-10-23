@@ -9,7 +9,7 @@ import (
 )
 
 var valueDefinitions []map[string]interface{}
-var currentStack int // everything is in global scope for now
+var currentStack int
 
 type instruction interface {
 	exec()
