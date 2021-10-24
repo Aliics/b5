@@ -14,6 +14,8 @@ type ShellProgram struct{}
 
 func (s ShellProgram) Exec() error {
 	b := bufio.NewReader(os.Stdin)
+	i := newInterpreter([]pToken{})
+
 	for {
 		fmt.Print("> ")
 
@@ -27,7 +29,9 @@ func (s ShellProgram) Exec() error {
 			return err
 		}
 
-		err = interpret(pts)
+		i.pts = append(i.pts, pts...)
+
+		err = i.interpret()
 		if err != nil {
 			return err
 		}
@@ -49,5 +53,5 @@ func (s StdProgram) Exec() error {
 		return err
 	}
 
-	return interpret(pts)
+	return newInterpreter(pts).interpret()
 }

@@ -8,108 +8,120 @@ import (
 	"strings"
 )
 
-var (
-	currentStack     int
-	valueDefinitions []map[string]interface{}
-)
+type interpreter struct {
+	pts []pToken
+	tkn int
 
-func interpret(pts []pToken) error {
-	_, err := interpretUntil(pts, []tokenType{})
-	return err
+	memoryManager
 }
 
-func interpretUntil(pts []pToken, until []tokenType) (i int, err error) {
-	for ; i < len(pts); i++ {
-		// Check if we go to the until token.
+func newInterpreter(pts []pToken) *interpreter {
+	return &interpreter{
+		pts: pts,
+		memoryManager: memoryManager{valueDefinitions: []map[string]interface{}{{}}},
+	}
+}
+
+func (i *interpreter) mkErr(msg string) error {
+	ln := 1
+	for j := 0; j < i.tkn; j++ {
+		if i.pts[j].tt == newline {
+			ln++
+		}
+	}
+
+	return errors.New("[" + strconv.Itoa(ln) + "]: " + msg)
+}
+
+func (i *interpreter) interpret() error {
+	return i.interpretUntil([]tokenType{})
+}
+
+func (i *interpreter) interpretUntil(until []tokenType) (err error) {
+	for ; i.tkn < len(i.pts); i.tkn++ {
+		// Check if we go to the until tkn.
 		for _, t := range until {
-			if pts[i].tt == t {
-				return i, nil
+			if i.pts[i.tkn].tt == t {
+				return nil
 			}
 		}
 
-		switch pts[i].tt {
+		switch i.pts[i.tkn].tt {
 		case letK: // LET x = 1
-			i, err = traverseSpaces(i, pts, true)
+			err = i.traverseSpaces(true)
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			identI := i
-			if pts[i].tt != ident {
-				return -1, errors.New(`expected identifier after "let"`)
+			identI := i.tkn
+			if i.pts[i.tkn].tt != ident {
+				return i.mkErr(`expected identifier after "let"`)
 			}
 
-			i, err = traverseSpaces(i, pts, false)
+			err = i.traverseSpaces(false)
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			if pts[i].tt != equals {
-				return -1, errors.New(`expected equals after identifier "` + pts[identI].data.(string) + `"`)
+			if i.pts[i.tkn].tt != equals {
+				return i.mkErr(`expected equals after identifier "` + i.pts[identI].data.(string) + `"`)
 			}
 
-			i, err = traverseSpaces(i, pts, false)
+			err = i.traverseSpaces(false)
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			var exp interface{}
-			i, exp, err = resolveExpression(i, pts)
+			exp, err := i.resolveExpression()
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			if len(valueDefinitions) <= currentStack {
-				valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
-			}
-			valueDefinitions[currentStack][pts[identI].data.(string)] = exp
+			i.newValue(i.pts[identI].data.(string), exp)
 		case ifK: // IF 1 THEN PRINT 1 ELSE PRINT 0 END
-			i, err = traverseSpaces(i, pts, true)
+			err = i.traverseSpaces(true)
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			var exp interface{}
-			i, exp, err = resolveExpression(i, pts)
+			exp, err := i.resolveExpression()
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			i, err = traverseSpaces(i, pts, true)
+			err = i.traverseSpaces(true)
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			if pts[i].tt != thenK {
-				return -1, errors.New(`expected "then" after if condition`)
+			if i.pts[i.tkn].tt != thenK {
+				return i.mkErr(`expected "then" after if condition`)
 			}
 
-			i, err = traverseSpaces(i, pts, false)
-			if err != nil && pts[i].tt != newline {
-				return -1, errors.New(`expected space or new line after "then"`)
+			err = i.traverseSpaces(false)
+			if err != nil && i.pts[i.tkn].tt != newline {
+				return i.mkErr(`expected space or new line after "then"`)
 			}
 
 			if exp.(int) == 1 {
-				err = executeInScope(func() error {
-					scopeBegin := i
-					i, err = interpretUntil(pts[scopeBegin:], []tokenType{endK, elseK})
-					i += scopeBegin
+				err = i.executeInScope(func() error {
+					err = i.interpretUntil([]tokenType{endK, elseK})
 					return err
 				})
 				if err != nil {
-					return -1, err
+					return err
 				}
 
-				if pts[i].tt == elseK {
-					i = traverseToToken(i, pts, endK)
+				if i.pts[i.tkn].tt == elseK {
+					i.traverseToToken(endK)
 				}
 			} else {
 				required := 1
-				for ; i < len(pts); i++ {
-					if pts[i].tt == ifK {
+				for ; i.tkn < len(i.pts); i.tkn++ {
+					if i.pts[i.tkn].tt == ifK {
 						required++
 					}
-					if pts[i].tt == endK || pts[i].tt == elseK {
+					if i.pts[i.tkn].tt == endK || i.pts[i.tkn].tt == elseK {
 						required--
 						if required == 0 {
 							break
@@ -118,85 +130,59 @@ func interpretUntil(pts []pToken, until []tokenType) (i int, err error) {
 				}
 			}
 		case printF: // PRINT 1
-			i, err = traverseSpaces(i, pts, true)
+			err = i.traverseSpaces(true)
 			if err != nil {
-				return -1, err
+				return err
 			}
 
-			if pts[i].tt != ident && (pts[i].tt < stringL || pts[i].tt > numberL) {
-				return -1, errors.New(`"print" requires exactly one argument`)
+			if i.pts[i.tkn].tt != ident && (i.pts[i.tkn].tt < stringL || i.pts[i.tkn].tt > numberL) {
+				return i.mkErr(`"print" requires exactly one argument`)
 			}
 
-			var exp interface{}
-			i, exp, err = resolveExpression(i, pts)
+			exp, err := i.resolveExpression()
 			if err != nil {
-				return -1, err
+				return err
 			}
 
 			fmt.Println(exp)
 		}
 	}
 
-	return i, nil
-}
-
-func executeInScope(f func() error) error {
-	currentStack++
-	valueDefinitions = append(valueDefinitions, make(map[string]interface{}))
-
-	err := f()
-	if err != nil {
-		return err
-	}
-
-	valueDefinitions = valueDefinitions[0 : len(valueDefinitions)-1]
-	currentStack--
-
 	return nil
 }
 
-func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
+func (i *interpreter) resolveExpression() (interface{}, error) {
 	var v interface{}
-	if pts[from].tt == ident {
-		s := currentStack
-		for {
-			key := pts[from].data.(string)
-			if s >= len(valueDefinitions) || s < 0 {
-				return -1, nil, errors.New(`could not find identifier "` + key + `"`)
-			}
-
-			if value, ok := valueDefinitions[s][key]; ok {
-				v = value
-				break
-			}
-
-			s--
+	if i.pts[i.tkn].tt == ident {
+		var err error
+		v, err = i.getValue(i.pts[i.tkn].data.(string))
+		if err != nil {
+			return nil, err
 		}
 	} else {
-		v = pts[from].data
+		v = i.pts[i.tkn].data
 	}
 
-	if len(pts) <= from+2 {
-		return from, v, nil
+	if len(i.pts) <= i.tkn+2 {
+		return v, nil
 	}
 
-	beforeSpaceI := from
-	from, err := traverseSpaces(from, pts, false)
+	beforeSpaceI := i.tkn
+	err := i.traverseSpaces(false)
 	if err != nil {
-		return -1, nil, err
+		return nil, err
 	}
 
-	opI := from
-	if pts[from].tt >= plus && pts[from].tt <= div {
-		from, err = traverseSpaces(from, pts, false)
+	opI := i.tkn
+	if i.pts[i.tkn].tt >= plus && i.pts[i.tkn].tt <= div {
+		err = i.traverseSpaces(false)
 		if err != nil {
-			return -1, nil, err
+			return nil, err
 		}
 
-		var exp interface{}
-		from, exp, err = resolveExpression(from, pts)
+		exp, err := i.resolveExpression()
 		if err != nil {
-			return -1, nil, err
+			return nil, err
 		}
 
 		expKind := reflect.TypeOf(exp).Kind()
@@ -204,10 +190,10 @@ func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 		switch v.(type) {
 		case int:
 			if expKind == reflect.String {
-				return -1, nil, errors.New("cannot add string to number")
+				return nil, i.mkErr("cannot add string to number")
 			}
 
-			switch pts[opI].tt {
+			switch i.pts[opI].tt {
 			case plus:
 				v = v.(int) + exp.(int)
 			case minus:
@@ -218,7 +204,7 @@ func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 				v = v.(int) / exp.(int)
 			}
 		case string:
-			switch pts[opI].tt {
+			switch i.pts[opI].tt {
 			case plus:
 				var str string
 				if expKind == reflect.String {
@@ -229,49 +215,61 @@ func resolveExpression(from int, pts []pToken) (int, interface{}, error) {
 
 				v = v.(string) + str
 			case minus:
-				return -1, nil, errors.New("cannot subtract from string")
+				return nil, i.mkErr("cannot subtract from string")
 			case mul:
 				if expKind != reflect.Int {
-					return -1, nil, errors.New("expected number on right hand of string multiplication")
+					return nil, i.mkErr("expected number on right hand of string multiplication")
 				}
 
 				v = strings.Repeat(v.(string), exp.(int))
 			case div:
-				return -1, nil, errors.New("cannot divide from string")
+				return nil, i.mkErr("cannot divide from string")
 			}
 		}
 	} else {
-		return beforeSpaceI, v, err
+		i.tkn = beforeSpaceI
+		return v, err
 	}
 
-	return from, v, nil
+	return v, nil
 }
 
-func traverseToToken(i int, pts []pToken, match tokenType) int {
-	for ; i < len(pts); i++ {
-		if pts[i].tt == match {
+func (i *interpreter) traverseToToken(match tokenType) {
+	for ; i.tkn < len(i.pts); i.tkn++ {
+		if i.pts[i.tkn].tt == match {
 			break
 		}
 	}
-
-	return i
 }
 
-func traverseSpaces(from int, pts []pToken, strict bool) (int, error) {
-	i := from + 1
-	if len(pts) <= i || len(pts) > i && pts[i].tt != space {
+func (i *interpreter) traverseSpaces(strict bool) error {
+	i.tkn++
+	if len(i.pts) <= i.tkn || len(i.pts) > i.tkn && i.pts[i.tkn].tt != space {
 		if strict {
-			return -1, errors.New(`expected space after "` + pts[from].tt.String() + `"`)
+			return i.mkErr(`expected space after "` + i.pts[i.tkn].tt.String() + `"`)
 		} else {
-			return i, nil
+			return nil
 		}
 	}
 
-	for ; i < len(pts); i++ {
-		if pts[i].tt != space {
+	for ; i.tkn < len(i.pts); i.tkn++ {
+		if i.pts[i.tkn].tt != space {
 			break
 		}
 	}
 
-	return i, nil
+	return nil
+}
+
+func (i interpreter) executeInScope(f func() error) error {
+	i.pushStack()
+
+	err := f()
+	if err != nil {
+		return err
+	}
+
+	i.popStack()
+
+	return nil
 }

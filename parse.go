@@ -79,10 +79,16 @@ func (t tokenType) String() string {
 }
 
 func parseTokens(str string) (pts []pToken, err error) {
+	ln := 1
+	mkErr := func(msg string) error {
+		return errors.New("[" + strconv.Itoa(ln) + "]: " + msg)
+	}
+
 	for i := 0; i < len(str); i++ {
 		r := unicode.ToLower(rune(str[i]))
 		switch r {
 		case '\n':
+			ln++
 			pts = append(pts, pToken{tt: newline})
 		case ' ', '\t':
 			pts = append(pts, pToken{tt: space})
@@ -143,7 +149,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 			}
 
 			if end == 0 {
-				return nil, errors.New("string is not closed")
+				return nil, mkErr("string is not closed")
 			}
 
 			pts = append(pts, pToken{stringL, str[i+1 : end]})
@@ -175,7 +181,7 @@ func parseTokens(str string) (pts []pToken, err error) {
 				}
 
 				if end < i {
-					return nil, errors.New("identifier starts with non-alphabetic rune")
+					return nil, mkErr("identifier starts with non-alphabetic rune")
 				}
 
 				pts = append(pts, pToken{ident, str[i:end]})
