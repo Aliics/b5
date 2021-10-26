@@ -174,7 +174,7 @@ func (i *interpreter) resolveExpression() (interface{}, error) {
 	}
 
 	opI := i.tkn
-	if i.pts[i.tkn].tt >= plus && i.pts[i.tkn].tt <= div {
+	if i.pts[i.tkn].tt >= assert && i.pts[i.tkn].tt <= div {
 		err = i.traverseSpaces(false)
 		if err != nil {
 			return nil, err
@@ -194,6 +194,12 @@ func (i *interpreter) resolveExpression() (interface{}, error) {
 			}
 
 			switch i.pts[opI].tt {
+			case assert:
+				if v.(int) == exp.(int) {
+					v = 1
+				} else {
+					v = 0
+				}
 			case plus:
 				v = v.(int) + exp.(int)
 			case minus:
@@ -205,6 +211,12 @@ func (i *interpreter) resolveExpression() (interface{}, error) {
 			}
 		case string:
 			switch i.pts[opI].tt {
+			case assert:
+				if expKind == reflect.String && v.(string) == exp.(string) {
+					v = 1
+				} else {
+					v = 0
+				}
 			case plus:
 				var str string
 				if expKind == reflect.String {

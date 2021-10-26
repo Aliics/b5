@@ -1,11 +1,13 @@
 LET name = "Alexander"
 
-IF 1 THEN
-    LET statement = " is cool."
-    IF 0 THEN
+IF name == "Alexander" THEN
+    LET statement = "is cool"
+    IF statement == "is bad" THEN
         PRINT "OBJECTION!"
     END
-    PRINT name + statement
+    PRINT name + " " + statement + "."
+ELSE IF name == "Rewi" THEN
+    PRINT "AM REWI!"
 ELSE
-    PRINT "who are you?"
+    PRINT "Go away Tom."
 END

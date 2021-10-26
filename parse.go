@@ -19,6 +19,7 @@ const (
 	newline tokenType = iota
 	space
 	equals
+	assert
 	plus
 	minus
 	mul
@@ -46,6 +47,8 @@ func (t tokenType) String() string {
 		return "space"
 	case equals:
 		return "equals"
+	case assert:
+		return "assert"
 	case plus:
 		return "plus"
 	case minus:
@@ -74,8 +77,9 @@ func (t tokenType) String() string {
 		return "string"
 	case numberL:
 		return "number"
+	default:
+		return "none"
 	}
-	return "none"
 }
 
 func parseTokens(str string) (pts []pToken, err error) {
@@ -92,8 +96,13 @@ func parseTokens(str string) (pts []pToken, err error) {
 			pts = append(pts, pToken{tt: newline})
 		case ' ', '\t':
 			pts = append(pts, pToken{tt: space})
-		case '=':
-			pts = append(pts, pToken{tt: equals})
+		case '=': // =, ==
+			if len(str) > i+1 && unicode.ToLower(rune(str[i+1])) == '=' {
+				pts = append(pts, pToken{tt: assert})
+				i++
+			} else {
+				pts = append(pts, pToken{tt: equals})
+			}
 		case '+':
 			pts = append(pts, pToken{tt: plus})
 		case '-':
